@@ -2,7 +2,7 @@ close all; clear; clc; format default;
 
 p = radarParams();
 A = echoMatrix(p); % NxM samples
-
+p.Href = matchedfilterRef(s, p.N);
 
 rawMatrix(A, p);
 fprintf('dR = %.2f m | dv = %.2f m/s | Rmax = %.0f m | vmax = %.0f m/s | fD = %.0f Hz\n', ...
@@ -75,4 +75,9 @@ function rawMatrix(A, p)
     subplot(2,1,2)
     plot(m, unwrap(angle(A(n0,:))), 'o', m, angle(A(n0,1)) + 2*pi*p.fD*p.PRI*m, '-')
     xlabel('Pulse m'); ylabel('Phase (rad)'); legend('measured', '\phi_0 + 2\pi f_D m T', 'Location', 'northwest')
+end
+
+%% Href
+function Href = matchedfilterRef(s,N) % reference fft for matched filter response
+    
 end
