@@ -1,7 +1,8 @@
 close all; clear; clc; format default;
 
 p = radarParams();
-A = echoMatrix(p);
+A = echoMatrix(p); % NxM samples
+
 
 rawMatrix(A, p);
 fprintf('dR = %.2f m | dv = %.2f m/s | Rmax = %.0f m | vmax = %.0f m/s | fD = %.0f Hz\n', ...
