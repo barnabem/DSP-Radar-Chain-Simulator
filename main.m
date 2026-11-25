@@ -1,10 +1,14 @@
 close all; clear; clc; format default;
 
 p = radarParams();
-A = echoMatrix(p); % NxM samples
-p.Href = matchedfilterRef(s, p.N);
+X = echoMatrix(p); % NxM samples
+rawMatrix(X, p);
 
-rawMatrix(A, p);
+p.Href = matchedfilterRef(p);
+Z = matchedFilter(X, p);
+rawMatrix(Z,p)
+
+
 fprintf('dR = %.2f m | dv = %.2f m/s | Rmax = %.0f m | vmax = %.0f m/s | fD = %.0f Hz\n', ...
         p.dR, p.dv, p.Rmax, p.vmax, p.fD);
 
@@ -44,11 +48,11 @@ end
 
 %% RX Simulated Samples
 % build our pulse and map for pulses in slow time (N) and fast time (M) dimensions
-function A = echoMatrix(p)
+function X = echoMatrix(p)
     t = (0:p.N-1).'/p.fs;
     tm = (0:p.M-1)*p.PRI;
     tau = 2*(p.R0 - p.v*tm)/p.c;
-    A = p.A * lfm(t - tau, p) .* exp(-1j*2*pi*p.fc*tau); % received signal idealized with propagation roundtrip
+    X = p.A * lfm(t - tau, p) .* exp(-1j*2*pi*p.fc*tau); % received signal idealized with propagation roundtrip
 end
 
 %% TX LFM Build
@@ -62,7 +66,6 @@ end
 
 %% RawMatrix
 % show measrued matrix with phase change and fast time axis
-
 function rawMatrix(A, p)
     t = (0:p.N-1)/p.fs*1e6;
     m = 0:p.M-1;
@@ -78,6 +81,23 @@ function rawMatrix(A, p)
 end
 
 %% Href
-function Href = matchedfilterRef(s,N) % reference fft for matched filter response
-    
+% precomputed freq response for our matched filter
+function Href = matchedfilterRef(p)
+    L = round(p.Tp*p.fs); k = (0:L-1).';
+    t_k = k./p.fs;
+    s = lfm(t_k, p);
+    Es = sum(abs(s).^2); Nfft = 2^nextpow2(p.N+L-1);
+    Href = conj(fft(s, Nfft))/Es;
+    cond_Href = all(abs(abs(s) - 1) < 1e-12) && (abs(sum(Href.*fft(s,Nfft))/Nfft -1) < 1e-12);
+    assert(cond_Href, 'Href Bad')
+end
+
+%% Matched Filter
+% Matched filter block for radar detections
+function z = matchedFilter(A, p)
+    Nfft = size(p.Href,1);
+    Y = fft(A, Nfft, 1); % DFT input
+    Z = Y .* p.Href; % DFT output of matched filter
+    z = ifft(Z, Nfft, 1);
+    z = z(1:size(A,1), :); % truncated output for zero-pad
 end
