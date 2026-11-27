@@ -6,7 +6,12 @@ rawMatrix(X, p);
 
 p.Href = matchedfilterRef(p);
 Z = matchedFilter(X, p);
-rawMatrix(Z,p)
+rawMatrix(Z,p);
+
+D = doppler(Z, p);
+
+[P, r, vel] = rdm(D,p);
+rdmPlot(P,r,vel)
 
 
 fprintf('dR = %.2f m | dv = %.2f m/s | Rmax = %.0f m | vmax = %.0f m/s | fD = %.0f Hz\n', ...
@@ -17,12 +22,14 @@ fprintf('dR = %.2f m | dv = %.2f m/s | Rmax = %.0f m | vmax = %.0f m/s | fD = %.
 function p = radarParams()
     p.c = 3*10^8; p.fc = 10e9;
     p.lambda = p.c/p.fc;
+    % p.B = 30e6;
     p.B = 30e6;
     p.fs = 60e6;
     p.Tp = 5e-6; % Pulse width  (s), howlong transmitter on for each pulse
     p.PRF = 20e3; % pulses per second (1/PRI)
     p.PRI = 1/p.PRF; % pulse period (s)
     p.M = 64; % number of pulses we process togetherr for velocity
+    p.wD = 0.5 - 0.5*cos(2*pi*(0:p.M-1)/p.M);
     % we set this to be high enough to get fine resolustion but not computationally too difficult 
 
     p.R0 = 2e3; % range of target at t = 0 (m)
@@ -100,4 +107,25 @@ function z = matchedFilter(A, p)
     Z = Y .* p.Href; % DFT output of matched filter
     z = ifft(Z, Nfft, 1);
     z = z(1:size(A,1), :); % truncated output for zero-pad
+end
+
+%% Doppler FFT
+%fft doppler along M pulse windows
+function D = doppler(Z, p)
+    D = fftshift(fft(Z .* p.wD, [], 2), 2);
+end
+
+%% RDM build block
+% P is our magnitude of Doppler fft dividided by pulse window peak
+function [P,r,vel] = rdm(D, p)
+    P = 20*log10(abs(D)/(p.A*sum(p.wD)));
+    r = (0:p.N-1)/p.fs*p.c/2; %axis range
+    vel = (-p.M/2:p.M/2-1)*p.dv; % axis velocity
+end
+
+function rdmPlot(P, r, vel)
+    figure
+    imagesc(vel, r, P, [-80 0]); axis xy
+    xlabel('Velocity (m/s)'); ylabel('Range (m)'); title('RDM (dB)')
+    colorbar
 end
